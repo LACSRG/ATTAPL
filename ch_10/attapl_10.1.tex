@@ -1,0 +1,661 @@
+\documentclass{amsart}
+\usepackage{attapl}
+\usepackage{mathtools}
+
+\title{Advanced Topics in Types and Programming Languages\\
+    Ch 10: The Essence of ML Type Inference\\Sec 10.1: What is ML?}
+%\title{Advanced Topics in Types and Programming Languages\\
+%    Editor: Benjamin C. Pierce\\Ch 10: The Essence of ML Type Inference\\
+%    By Fran\c{c}ois Pottier and Dider R\'emy\\Sec 10.1: What is ML?}
+\date{Saturday, 2016-11-12}
+
+\begin{document}
+\maketitle
+
+\def\dto{\overset{\delta}{\to}}
+
+\newlength{\colwid}
+\setlength{\colwid}{0.5\textwidth}
+
+\newcommand{\p}{$^\prime$}
+
+% Figure 10-2: Semantics of ML-the-calculus
+\newlength{\oldjot}
+\setlength{\oldjot}{\jot}
+\begin{figure}[h]
+  \begin{tabular}{p{\colwid}|p{\colwid}}
+    {\begin{minipage}{\colwid}
+      \setlength{\jot}{1em}
+      \begin{align*}
+        (\lambda \mono{z}.\mono{t}) \mono{ v} \to [\mono{z} \mapsto
+            \mono{v}]\mono{t}& & &\textup{(R-Beta)} \\
+        \mono{let z} = \mono{v in t} \to [\mono{z} \mapsto
+            \mono{v}]\mono{t}& & &\textup{(R-Let)} \\
+        \frac{\mono{t}/\mu \dto \mono{t}'/\mu'}{\mono{t}/\mu \to
+            \mono{t}'/\mu'}& & &\textup{(R-Delta)}
+      \end{align*}
+    \end{minipage}}
+    &
+    {\begin{minipage}{\colwid}
+      \begin{align*}
+      \frac{
+          \begin{gathered}
+            \mono{t}/\mu \to \mono{t}'/\mu' \\
+            dom(\mu'') \disjoint dom(\mu') \\
+            range(\mu'') \disjoint dom(\mu'\setminus\mu)
+          \end{gathered}
+        }{\mono{t}/\mu\mu'' \to \mono{t}'/\mu'\mu''}&
+        & &\textup{(R-Extend)} \\[1em]
+      \frac{\mono{t}/\mu \to \mono{t}'/\mu'}
+          {\mathcal{E}[\mono{t}]/\mu \to
+          \mathcal{E}[\mono{t}']/\mu'}& & &\textup{(R-Context)}
+    \end{align*} \end{minipage}}
+  \end{tabular}
+  \caption{[10-2] Semantics of ML-the-calculus}
+\end{figure}
+
+% Exercise 10.1.6
+\begin{problem}[10.1.6]
+  Let \mono{true} and \mono{false} be nullary constructors. Let \mono{if} be a
+  ternary destructor. Extend the semantics with
+  \begin{align*}
+    \mono{if true v}_1 \mono{ v}_2 &\overset{\delta}{\to} \mono{v}_1 &
+        &\textup{(R-True)} \\
+    \mono{if false v}_1 \mono{ v}_2 &\overset{\delta}{\to} \mono{v}_2 &
+        &\textup{(R-False)}
+  \end{align*}
+  Let us use the syntactic sugar \(\mono{if t}_0 \mono{ then t}_1
+  \mono{ else t}_2\) for the triple application of \(\mono{if t}_0 \mono{ t}_1
+  \mono{ t}_2\). Explain why these definitions do not quite provide the expected
+  behavior. Without modifying the semantics of \mono{if}, suggest a new
+  definition of the syntactic sugar \(\mono{if t}_0 \mono{ then t}_1
+  \mono{ else t}_2\) that corrects the problem.
+\end{problem}
+
+\begin{solution}
+  Desugaring to \(\mono{if t}_0 \mono{ t}_1 \mono{ t}_2\) will cause
+  both \(\mono{t}_1\) and \(\mono{t}_2\) to be fully evaluated regardless of the
+  value of \(\mono{t}_0\) because the \(\mono{if}\) destructor cannot be reduced
+  until all of its arguments already have been. This is not the expected
+  behavior if \(\mono{t}_1\) or \(\mono{t}_2\) has side effects.
+
+  One way to resolve the issue is to desugar instead to \((\mono{if t}_0
+  \mono{ } (\lambda \mono{\_.t}_1) \mono{ } (\lambda \mono{\_.t}_2))
+  \mono{ p}\) where \(\mono{p}\) is an arbitrary pure term (without side
+  effects).  Wrapping \(\mono{t}_1\) and \(\mono{t}_2\) in
+  \(\lambda\)-abstractions (which are values) defers the evaluation
+  of \(\mono{t}_1\) (\(\mono{t}_2\)) until the corresponding
+  \(\lambda\)-abstraction is applied. Since only the right one is ever applied,
+  only the right term is ever evaluated.
+\end{solution}
+
+% Exercise 10.1.8
+\begin{problem}[10.1.8]
+  Explain how to encode \(\mono{true}\), \(\mono{false}\), and the \(\mono{if}\)
+  construct in terms of sums. Check that the behavior of \(\textup{(R-True)}\)
+  and \(\textup{(R-False)}\) is properly emulated.
+\end{problem}
+
+\begin{solution}
+  This amounts to a minor rearrangement of the solution to 10.1.6. Let
+  \(\mono{p}\) be an arbitrary pure term as before. Define \(\mono{true}\)
+  (\(\mono{false}\)) as syntactic sugar for \(\mono{inj}_1 \mono{ p}\)
+  (\(\mono{inj}_2 \mono{ p}\)), and \(\mono{if t}_0 \mono{ t}_1 \mono{ t}_2\) as
+  syntactic sugar for \(\mono{case t}_0 \mono{ } (\lambda \mono{\_.t}_1)
+  \mono{ } (\lambda \mono{\_.t}_2)\). We verify the reductions by calculation:
+  \begin{align*}
+    \mono{if true then t}_1 \mono{ else t}_2 &\mapsto \mono{case }
+        (\mono{inj}_1 \mono{ p}) \mono{ } (\lambda \mono{\_.t}_1) \mono{ }
+        (\lambda \mono{\_.t}_2) \\
+    &\to (\lambda \mono{\_.t}_1) \mono{ p} \\
+    &\to \mono{v}_1 \\
+    \mono{if false then t}_1 \mono{ else t}_2 &\mapsto \mono{case }
+        (\mono{inj}_2 \mono{ p}) \mono{ } (\lambda \mono{\_.t}_1) \mono{ }
+        (\lambda \mono{\_.t}_2) \\
+    &\to (\lambda \mono{\_.t}_2) \mono{ p} \\
+    &\to \mono{v}_2
+  \end{align*}
+  \qed
+\end{solution}
+
+% Exercise 10.1.11
+\begin{problem}[10.1.11]
+  Assuming the availability of Booleans and conditionals, integer literals,
+  subtraction, multiplication, integer comparison, and a fixpoint combinator,
+  most of which were defined in previous examples, define a function that
+  computes the factorial of its integer argument, and applit to \(\hat{3}\).
+  Determine, step by step, how this expression reduces to a value.
+\end{problem}
+
+\begin{solution}
+  We may define such a function as
+  \begin{align*}
+    \mono{fact} := \mono{fix } \lambda \mono{f.} \lambda \mono{n.} \!
+        \left(\mono{case } (\hat{\mono{<}} \mono{ n } \hat{\mono{2}}) \mono{ }
+        \lambda \mono{\_.} \! (\hat{\mono{1}}) \mono{ }
+        \lambda \mono{\_.} \! (\hat{\mono{*}} \mono{ n } (\mono{f }
+          (\hat{\mono{-}} \mono{ n } \hat{\mono{1}})))\right)
+  \end{align*}
+  Evaluating \(\mono{fact } \hat{\mono{3}}\) we find that
+  \begin{align*}
+    \mono{fact } \hat{\mono{3}} \:\: \mapsto \:\:& \mono{fix }
+        \lambda \mono{f.} \lambda \mono{n.} \!
+          \left(\mono{case } (\hat{\mono{<}} \mono{ n } \hat{\mono{2}}) \mono{ }
+          \lambda \mono{\_.} \! (\hat{\mono{1}}) \mono{ }
+          \lambda \mono{\_.} \! (\hat{\mono{*}} \mono{ n } (\mono{f }
+            (\hat{\mono{-}} \mono{ n } \hat{\mono{1}})))\right) \mono{ }
+        \hat{\mono{3}}
+        \\[0.5em]
+    \to \:\: &\lambda \mono{f.} \lambda \mono{n.} \!
+        \left(\mono{case } (\hat{\mono{<}} \mono{ n } \hat{\mono{2}}) \mono{ }
+          \lambda \mono{\_.} \! (\hat{\mono{1}}) \mono{ }
+          \lambda \mono{\_.} \! (\hat{\mono{*}} \mono{ n } (\mono{f }
+            (\hat{\mono{-}} \mono{ n } \hat{\mono{1}})))\right) \\
+    &\mono{ } \left(\mono{fix } \lambda \mono{f.} \lambda \mono{n.} \!
+        \left(\mono{case } (\hat{\mono{<}} \mono{ n } \hat{\mono{2}}) \mono{ }
+          \lambda \mono{\_.} \! (\hat{\mono{1}}) \mono{ }
+          \lambda \mono{\_.} \! (\hat{\mono{*}} \mono{ n } (\mono{f }
+            (\hat{\mono{-}} \mono{ n } \hat{\mono{1}})))\right)\right) \mono{ }
+        \hat{\mono{3}}
+        \\[0.5em]
+    \to \:\: &\lambda \mono{n.} \!
+        \left(\mono{case } (\hat{\mono{<}} \mono{ n } \hat{\mono{2}}) \mono{ }
+          \lambda \mono{\_.} \! (\hat{\mono{1}}) \mono{ }
+          \lambda \mono{\_.} \! \left(\hat{\mono{*}} \mono{ n} \right. \right.
+          \\
+    \:\: &\qquad \left. \left. \left(\mono{fix }
+        \lambda \mono{f.} \lambda \mono{n.} \!
+          \left(\mono{case } (\hat{\mono{<}} \mono{ n } \hat{\mono{2}}) \mono{ }
+            \lambda \mono{\_.} \! (\hat{\mono{1}}) \mono{ }
+            \lambda \mono{\_.} \! (\hat{\mono{*}} \mono{ n } (\mono{f }
+              (\hat{\mono{-}} \mono{ n } \hat{\mono{1}})))\right) \mono{ }
+            (\hat{\mono{-}} \mono{ n } \hat{\mono{1}})\right)\right)\right)
+        \mono{ } \hat{\mono{3}}
+        \\[0.5em]
+    \to \:\: & \mono{case }
+        (\hat{\mono{<}}\mono{ }\hat{\mono{3}}\mono{ }\hat{\mono{2}}) \mono{ }
+          \lambda \mono{\_.} \! (\hat{\mono{1}}) \mono{ }
+          \lambda \mono{\_.} \! \left(\hat{\mono{*}} \mono{ }\hat{\mono{3}}
+          \right. \\
+    \:\: &\qquad \left. \left(\mono{fix }
+        \lambda \mono{f.} \lambda \mono{n.} \!
+          \left(\mono{case } (\hat{\mono{<}} \mono{ n } \hat{\mono{2}}) \mono{ }
+            \lambda \mono{\_.} \! (\hat{\mono{1}}) \mono{ }
+            \lambda \mono{\_.} \! (\hat{\mono{*}} \mono{ n } (\mono{f }
+              (\hat{\mono{-}} \mono{ n } \hat{\mono{1}})))\right) \mono{ }
+            (\hat{\mono{-}}\mono{ }\hat{\mono{3}}\mono{ }\hat{\mono{1}})\right)
+          \right)
+  \end{align*}
+  \begin{align*}
+    \to \:\: & \mono{case false }
+          \lambda \mono{\_.} \! (\hat{\mono{1}}) \mono{ }
+          \lambda \mono{\_.} \! \left(\hat{\mono{*}} \mono{ }\hat{\mono{3}}
+          \right. \\
+    \:\: &\qquad \left. \left(\mono{fix }
+        \lambda \mono{f.} \lambda \mono{n.} \!
+          \left(\mono{case } (\hat{\mono{<}} \mono{ n } \hat{\mono{2}}) \mono{ }
+            \lambda \mono{\_.} \! (\hat{\mono{1}}) \mono{ }
+            \lambda \mono{\_.} \! (\hat{\mono{*}} \mono{ n } (\mono{f }
+              (\hat{\mono{-}} \mono{ n } \hat{\mono{1}})))\right) \mono{ }
+            (\hat{\mono{-}}\mono{ }\hat{\mono{3}}\mono{ }\hat{\mono{1}})\right)
+          \right)
+        \\[0.5em]
+    \to \:\: & \lambda \mono{\_.} \! \left(\hat{\mono{*}} \mono{ }\hat{\mono{3}}
+        \mono{ } \! \left(\mono{fix } \lambda \mono{f.} \lambda \mono{n.} \!
+          \left(\mono{case } (\hat{\mono{<}} \mono{ n } \hat{\mono{2}}) \mono{ }
+            \lambda \mono{\_.} \! (\hat{\mono{1}}) \mono{ }
+            \lambda \mono{\_.} \! (\hat{\mono{*}} \mono{ n } (\mono{f }
+              (\hat{\mono{-}} \mono{ n } \hat{\mono{1}})))\right) \mono{ }
+            (\hat{\mono{-}}\mono{ }\hat{\mono{3}}\mono{ }\hat{\mono{1}})\right)
+          \right) \mono{ p}
+        \\[0.5em]
+    \to \:\: & \hat{\mono{*}} \mono{ }\hat{\mono{3}}
+        \mono{ } \! \left(\mono{fix } \lambda \mono{f.} \lambda \mono{n.} \!
+          \left(\mono{case } (\hat{\mono{<}} \mono{ n } \hat{\mono{2}}) \mono{ }
+            \lambda \mono{\_.} \! (\hat{\mono{1}}) \mono{ }
+            \lambda \mono{\_.} \! (\hat{\mono{*}} \mono{ n } (\mono{f }
+              (\hat{\mono{-}} \mono{ n } \hat{\mono{1}})))\right) \mono{ }
+            (\hat{\mono{-}}\mono{ }\hat{\mono{3}}\mono{ }\hat{\mono{1}})\right)
+        \\[0.5em]
+    \to \:\: & \hat{\mono{*}} \mono{ }\hat{\mono{3}}
+        \mono{ } \! \left(\lambda \mono{f.} \lambda \mono{n.} \!
+          \left(\mono{case } (\hat{\mono{<}} \mono{ n } \hat{\mono{2}}) \mono{ }
+            \lambda \mono{\_.} \! (\hat{\mono{1}}) \mono{ }
+            \lambda \mono{\_.} \! (\hat{\mono{*}} \mono{ n } (\mono{f }
+              (\hat{\mono{-}} \mono{ n } \hat{\mono{1}})))\right)
+        \right. \\
+    \:\: &\qquad \left. \left(\mono{fix } \lambda \mono{f.} \lambda \mono{n.} \!
+          \left(\mono{case } (\hat{\mono{<}} \mono{ n } \hat{\mono{2}}) \mono{ }
+            \lambda \mono{\_.} \! (\hat{\mono{1}}) \mono{ }
+            \lambda \mono{\_.} \! (\hat{\mono{*}} \mono{ n } (\mono{f }
+              (\hat{\mono{-}} \mono{ n } \hat{\mono{1}})))\right)\right)
+            \mono{ }
+            (\hat{\mono{-}}\mono{ }\hat{\mono{3}}\mono{ }\hat{\mono{1}})\right)
+  \end{align*}
+  \begin{align*}
+    \to \:\: & \hat{\mono{*}} \mono{ }\hat{\mono{3}}
+        \mono{ } \! \left(\lambda \mono{f.} \lambda \mono{n.} \!
+          \left(\mono{case } (\hat{\mono{<}} \mono{ n } \hat{\mono{2}}) \mono{ }
+            \lambda \mono{\_.} \! (\hat{\mono{1}}) \mono{ }
+            \lambda \mono{\_.} \! (\hat{\mono{*}} \mono{ n } (\mono{f }
+              (\hat{\mono{-}} \mono{ n } \hat{\mono{1}})))\right)
+        \right. \\
+    \:\: &\qquad \left. \left(\mono{fix } \lambda \mono{f.} \lambda \mono{n.} \!
+          \left(\mono{case } (\hat{\mono{<}} \mono{ n } \hat{\mono{2}}) \mono{ }
+            \lambda \mono{\_.} \! (\hat{\mono{1}}) \mono{ }
+            \lambda \mono{\_.} \! (\hat{\mono{*}} \mono{ n } (\mono{f }
+              (\hat{\mono{-}} \mono{ n } \hat{\mono{1}})))\right)\right)
+          \mono{ } \hat{\mono{2}}\right)
+        \\[0.5em]
+    \to \:\: & \hat{\mono{*}} \mono{ }\hat{\mono{3}}
+        \mono{ } \! \left(\lambda \mono{n.} \!
+          \left(\mono{case } (\hat{\mono{<}} \mono{ n } \hat{\mono{2}}) \mono{ }
+            \lambda \mono{\_.} \! (\hat{\mono{1}}) \mono{ }
+            \lambda \mono{\_.} \! (\hat{\mono{*}} \mono{ n } \right. \right. \\
+    \:\:&\qquad\quad\left.\left.(\mono{fix }\lambda\mono{f'.}\lambda\mono{n'.}\!
+          \left(\mono{case } (\hat{\mono{<}} \mono{ n' } \hat{\mono{2}})
+            \mono{ } \lambda \mono{\_.} \! (\hat{\mono{1}}) \mono{ }
+            \lambda \mono{\_.} \! (\hat{\mono{*}} \mono{ n' } (\mono{f' }
+              (\hat{\mono{-}} \mono{ n' } \hat{\mono{1}})))\right)
+        \mono{ } (\hat{\mono{-}} \mono{ n } \hat{\mono{1}})))\right) \mono{ }
+        \hat{\mono{2}}\right)
+        \\[0.5em]
+    \to \:\: & \hat{\mono{*}} \mono{ }\hat{\mono{3}}
+        \mono{ } \! \left(\mono{case }
+          (\hat{\mono{<}}\mono{ }\hat{\mono{2}}\mono{ }\hat{\mono{2}}) \mono{ }
+          \lambda \mono{\_.} \! (\hat{\mono{1}}) \mono{ }
+          \lambda \mono{\_.} \! (\hat{\mono{*}} \mono{ }\hat{\mono{2}}\mono{ }
+          \right. \\
+    \:\: &\qquad\quad \left. (\mono{fix }\lambda\mono{f'.}\lambda\mono{n'.}\!
+          \left(\mono{case } (\hat{\mono{<}} \mono{ n' } \hat{\mono{2}})
+            \mono{ } \lambda \mono{\_.} \! (\hat{\mono{1}}) \mono{ }
+            \lambda \mono{\_.} \! (\hat{\mono{*}} \mono{ n' } (\mono{f' }
+              (\hat{\mono{-}} \mono{ n' } \hat{\mono{1}})))\right) \mono{ }
+        (\hat{\mono{-}}\mono{ }\hat{\mono{2}}\mono{ }\hat{\mono{1}})))\right)
+        \\[0.5em]
+    \to \:\: & \hat{\mono{*}} \mono{ }\hat{\mono{3}}
+        \mono{ } \! \left(\mono{case false }
+          \lambda \mono{\_.} \! (\hat{\mono{1}}) \mono{ }
+          \lambda \mono{\_.} \! (\hat{\mono{*}} \mono{ }\hat{\mono{2}}\mono{ }
+          \right. \\
+    \:\: &\qquad\quad \left. (\mono{fix }\lambda\mono{f'.}\lambda\mono{n'.}\!
+          \left(\mono{case } (\hat{\mono{<}} \mono{ n' } \hat{\mono{2}})
+            \mono{ } \lambda \mono{\_.} \! (\hat{\mono{1}}) \mono{ }
+            \lambda \mono{\_.} \! (\hat{\mono{*}} \mono{ n' } (\mono{f' }
+              (\hat{\mono{-}} \mono{ n' } \hat{\mono{1}})))\right) \mono{ }
+        (\hat{\mono{-}}\mono{ }\hat{\mono{2}}\mono{ }\hat{\mono{1}})))\right)
+  \end{align*}
+  \begin{align*}
+    \to \:\: & \hat{\mono{*}} \mono{ }\hat{\mono{3}}
+        \mono{ } \! \left(\lambda \mono{\_.} \!
+          (\hat{\mono{*}} \mono{ } \hat{\mono{2}} \mono{ } \right. \\
+    \:\: &\qquad\quad \left. (\mono{fix }\lambda\mono{f'.}\lambda\mono{n'.}\!
+          \left(\mono{case } (\hat{\mono{<}} \mono{ n' } \hat{\mono{2}})
+            \mono{ } \lambda \mono{\_.} \! (\hat{\mono{1}}) \mono{ }
+            \lambda \mono{\_.} \! (\hat{\mono{*}} \mono{ n' } (\mono{f' }
+              (\hat{\mono{-}} \mono{ n' } \hat{\mono{1}})))\right) \mono{ }
+        (\hat{\mono{-}}\mono{ }\hat{\mono{2}}\mono{ }\hat{\mono{1}})) \mono{ p})
+        \right)
+        \\[0.5em]
+    \to \:\: & \hat{\mono{*}} \mono{ } \hat{\mono{3}} \mono{ } \!
+        \left(\hat{\mono{*}} \mono{ } \hat{\mono{2}} \mono{ }
+            (\mono{fix } \lambda \mono{f'.} \lambda\mono{n'.} \!
+              \left(\mono{case } (\hat{\mono{<}} \mono{ n' } \hat{\mono{2}})
+                \mono{ }
+                \lambda \mono{\_.} \! (\hat{\mono{1}}) \mono{ }
+                \lambda \mono{\_.} \! (\hat{\mono{*}} \mono{ n' } (\mono{f' }
+                  (\hat{\mono{-}} \mono{ n' } \hat{\mono{1}})))\right) \mono{ }
+              (\hat{\mono{-}}\mono{ }\hat{\mono{2}}\mono{ }\hat{\mono{1}}))
+        \right)
+        \\[0.5em]
+    \to \:\: & \hat{\mono{*}} \mono{ } \hat{\mono{3}} \mono{ } \!
+        \left(\hat{\mono{*}} \mono{ } \hat{\mono{2}} \mono{ }
+            (\mono{fix } \lambda \mono{f'.} \lambda\mono{n'.} \!
+              \left(\mono{case } (\hat{\mono{<}} \mono{ n' } \hat{\mono{2}})
+                \mono{ }
+                \lambda \mono{\_.} \! (\hat{\mono{1}}) \mono{ }
+                \lambda \mono{\_.} \! (\hat{\mono{*}} \mono{ n' } (\mono{f' }
+                  (\hat{\mono{-}} \mono{ n' } \hat{\mono{1}})))\right) \mono{ }
+              \hat{\mono{1}})
+        \right)
+        \\[0.5em]
+    \to \:\: & \hat{\mono{*}} \mono{ } \hat{\mono{3}} \mono{ } \!
+        \left(\hat{\mono{*}} \mono{ } \hat{\mono{2}} \mono{ }
+            \left(\lambda \mono{f'.} \lambda\mono{n'.} \!
+              \left(\mono{case } (\hat{\mono{<}} \mono{ n' } \hat{\mono{2}})
+                \mono{ }
+                \lambda \mono{\_.} \! (\hat{\mono{1}}) \mono{ }
+                \lambda \mono{\_.} \! (\hat{\mono{*}} \mono{ n' } (\mono{f' }
+                  (\hat{\mono{-}} \mono{ n' } \hat{\mono{1}})))\right)
+              \right. \right. \\
+    \:\: &\qquad\quad\left.\left.
+      \left(\mono{fix } \lambda \mono{f'.} \lambda\mono{n'.} \!
+        \left(\mono{case } (\hat{\mono{<}} \mono{ n' } \hat{\mono{2}}) \mono{ }
+          \lambda \mono{\_.} \! (\hat{\mono{1}}) \mono{ }
+          \lambda \mono{\_.} \! (\hat{\mono{*}} \mono{ n' } (\mono{f' }
+            (\hat{\mono{-}} \mono{ n' } \hat{\mono{1}})))\right)\right) \mono{ }
+        \hat{\mono{1}}\right)\right)
+  \end{align*}
+  \begin{align*}
+    \to \:\: & \hat{\mono{*}} \mono{ } \hat{\mono{3}} \mono{ } \!
+        \left(\hat{\mono{*}} \mono{ } \hat{\mono{2}} \mono{ }
+          \left(\mono{case }
+            (\hat{\mono{<}} \mono{ } \hat{\mono{1}} \mono{ } \hat{\mono{2}})
+              \mono{ }
+            \lambda \mono{\_.} \! (\hat{\mono{1}}) \mono{ }
+            \lambda \mono{\_.} \! (\hat{\mono{*}} \mono{ }\hat{\mono{1}}\mono{ }
+            \right. \right. \\
+    \:\: &\qquad \quad \left. \left.
+        \left(\mono{fix }\lambda\mono{f''.}\lambda \mono{n''.}\!
+          \left(\mono{case } (\hat{\mono{<}}\mono{ n'' }\hat{\mono{2}}) \mono{ }
+            \lambda \mono{\_.} \! (\hat{\mono{1}}) \mono{ }
+            \lambda \mono{\_.} \! (\hat{\mono{*}} \mono{ n'' } (\mono{f'' }
+              (\hat{\mono{-}} \mono{ n'' } \hat{\mono{1}})))\right)\right)
+        (\hat{\mono{-}} \mono{ }\hat{\mono{1}}\mono{ } \hat{\mono{1}}))
+        \right)\right)
+        \\[0.5em]
+    \to \:\: & \hat{\mono{*}} \mono{ } \hat{\mono{3}} \mono{ } \!
+        \left(\hat{\mono{*}} \mono{ } \hat{\mono{2}} \mono{ }
+          \left(\lambda \mono{\_.} \! (\hat{\mono{1}}) \mono{ p}\right)\right)
+        \\[0.5em]
+    \to \:\: & \hat{\mono{*}} \mono{ } \hat{\mono{3}} \mono{ } \!
+        \left(\hat{\mono{*}} \mono{ } \hat{\mono{2}} \mono{ } \hat{\mono{1}}
+        \right)
+        \\[0.5em]
+    \to \:\: & \hat{\mono{*}} \mono{ } \hat{\mono{3}} \mono{ } \hat{\mono{2}}
+        \\[0.5em]
+    \to \:\: & \hat{\mono{6}}
+  \end{align*}
+  \qed
+\end{solution}
+
+\newpage
+
+% Figure 10-3: Typing rules for DM
+\begin{figure}[h]
+  \begin{tabular}{p{\colwid}|p{\colwid}}
+    {\begin{minipage}{\colwid}
+      \setlength{\jot}{1em}
+      \begin{align*}
+        \frac{\Gamma(\mono{x}) = S}
+             {\Gamma \entails \mono{x} \inhabits S}& &
+          &\textup{(DM-Var)} \\
+        \frac{\Gamma; \mono{z} \inhabits \mono{T} \entails
+              \mono{t} \inhabits \mono{T}^\prime}
+             {\Gamma \entails \lambda \mono{z.t} \inhabits \mono{T} \to
+              \mono{T}^\prime}& &
+          &\textup{(DM-Abs)} \\
+        \frac{\Gamma \entails \mono{T}_1 \inhabits \mono{T} \to \mono{T}^\prime
+              \quad \Gamma \entails \mono{t}_2 \inhabits \mono{T}}
+             {\Gamma \entails \mono{t}_1\mono{ t}_2 \inhabits \mono{T}^\prime}&
+          & &\textup{(DM-App)}
+      \end{align*}
+    \end{minipage}}
+    &
+    {\begin{minipage}{\colwid}
+      \setlength{\jot}{1em}
+      \begin{align*}
+        \frac{\Gamma \entails \mono{t}_1 \inhabits S \quad \Gamma; \mono{z}
+              \inhabits S \entails \mono{t}_2 \inhabits \mono{T}}
+             {\Gamma \entails \mono{let z} = \mono{t}_1 \mono{ in t}_2 \inhabits
+              \mono{T}}& &
+          &\textup{(DM-Let)} \\
+        \frac{\Gamma \entails \mono{t} \inhabits \mono{T} \quad
+              \bar{\mono{X}} \disjoint ftv(\Gamma)}
+             {\Gamma \entails \mono{t} \inhabits \forall\bar{\mono{X}}.\mono{T}}&
+          & &\textup{(DM-Gen)} \\
+        \frac{\Gamma \entails \mono{t} \inhabits \forall\bar{\mono{X}}.\mono{T}}
+             {\Gamma \entails \mono{t} \inhabits [\vec{\mono{X}} \mapsto
+              \vec{\mono{T}}]\mono{T}}& &
+          &\textup{(DM-Inst)}
+      \end{align*}
+    \end{minipage}}
+  \end{tabular}
+  \caption{[10-3] Typing rules for DM}
+\end{figure}
+
+% Exercise 10.1.22
+\begin{problem}[10.1.22]
+  Build a type derivation for the expression \(\lambda \mono{z}_1 .
+  \mono{let z}_2 = \mono{z}_1 \mono{ in z}_2.\)
+\end{problem}
+
+\begin{solution}
+  \begin{prooftree}
+    \AxiomC{\(
+      \mono{z}_1 \inhabits \mono{T}
+      \entails
+      \mono{z}_1 \inhabits \mono{T}\)}
+    \AxiomC{\(
+      \mono{z}_1 \inhabits \mono{T}; \mono{z}_2 \inhabits \mono{T}
+      \entails
+      \mono{z}_2 \inhabits \mono{T}
+    \)}
+    \RightLabel{\small (DM-Let)}
+    \BinaryInfC{\(
+      \mono{z}_1 \inhabits \mono{T}
+      \entails
+      \mono{let z}_2 = \mono{z}_1
+        \mono{ in z}_2 \inhabits \mono{T}
+    \)}
+    \RightLabel{\small (DM-Abs)}
+    \UnaryInfC{\(
+      \mono{z}_1 \inhabits \mono{T}
+      \entails
+      \lambda \mono{z}_1 .
+        \mono{let z}_2 = \mono{z}_1 \mono{ in z}_2 \inhabits
+        \mono{T} \to \mono{T}
+    \)}
+  \end{prooftree}
+  \qed
+\end{solution}
+
+% Exercise 10.1.23
+\begin{problem}
+  Let \mono{int} be a nullary type constructor of signature \(\star\). Let
+  \(\Gamma_0\) consist of the bindings \(\hat{+} \inhabits \mono{int} \to
+  \mono{int} \to \mono{int}\) and \(\hat{k} \inhabits \mono{int}\), for every
+  integer \(k\).  Can you find derivations of the following valid typing
+  judgments? Which of these judgments are valid in the simply-typed
+  \(\lambda\)-calculus, where \(\mono{let z} = \mono{t}_1 \mono{ in t}_2\) is
+  syntactic sugar for \((\lambda \mono{z.t}_2) \mono{ t}_1\)?
+  \begin{align*}
+    \Gamma_0 \entails& \lambda \mono{z.z} \inhabits \mono{int} \to \mono{int} \\
+    \Gamma_0 \entails& \lambda \mono{z.z} \inhabits \forall \mono{X.X} \to
+      \mono{X} \\
+    \Gamma_0 \entails& \mono{let f} = \lambda \mono{z.z } \hat{\mono{+}}
+      \mono{ } \hat{\mono{1}} \mono{ in f } \hat{\mono{2}} \inhabits
+      \mono{int} \\
+    \Gamma_0 \entails& \mono{let f} = \lambda \mono{z.z} \mono{ in f f }
+      \hat{\mono{2}} \inhabits \mono{int}
+  \end{align*}
+  Show that the expressions \(\hat{\mono{1}} \mono{ } \hat{\mono{2}}\) and
+  \(\lambda \mono{f.} (\mono{f f})\) are ill-typed within \(\Gamma_0\). Could
+  these expressions be well-typed in a more powerful type system?
+\end{problem}
+
+\begin{solution}
+  Let \(\mathbb{Z} = \mono{int}\).
+  \ \\
+
+  \noindent
+  \(\Gamma_0 \entails \lambda \mono{z.z} \inhabits \mathbb{Z} \to \mathbb{Z}\)
+  is valid in the simply-typed lambda calculus, as the following derivation does
+  not make use of (DM-Gen) or (DM-Inst).
+
+  Derivation:
+  \begin{prooftree}
+    \AxiomC{\(\{\Gamma_0; \mono{z} \inhabits \mathbb{Z}\}(\mono{z}) =
+      \mathbb{Z}\)}
+    \RightLabel{\small (DM-Var)}
+    \UnaryInfC{\(\Gamma_0; \mono{z} \inhabits \mathbb{Z} \entails \mono{z}
+      \inhabits \mathbb{Z}\)}
+    \RightLabel{\small (DM-Abs)}
+    \UnaryInfC{\(\Gamma_0 \entails \lambda \mono{z.z} \inhabits \mathbb{Z} \to
+      \mathbb{Z}\)}
+  \end{prooftree}
+  \ \\
+
+  \noindent
+  \(\Gamma_0 \entails \lambda \mono{z.z} \inhabits \forall \mono{X.X} \to
+  \mono{X}\)
+  is not valid in the simply-typed lambda calculus because the STLC lacks type
+  schemes.
+
+  Derivation:
+  \begin{prooftree}
+    \AxiomC{\(\{\Gamma_0; \mono{z} \inhabits \mono{X}\}(\mono{z})\)}
+    \RightLabel{\small (DM-Var)}
+    \UnaryInfC{\(\Gamma_0; \mono{z} \inhabits \mono{X} \entails \mono{z}
+      \inhabits \mono{X}\)}
+    \RightLabel{\small (DM-Abs)}
+    \UnaryInfC{\(\Gamma_0 \entails \lambda \mono{z.z} \inhabits \mono{X} \to
+      \mono{X}\)}
+    \AxiomC{\(\mono{X} \disjoint ftv(\Gamma_0)\)}
+    \RightLabel{\small (DM-Gen)}
+    \BinaryInfC{\(\Gamma_0 \entails \lambda \mono{z.z} \inhabits \forall
+      \mono{X.X} \to \mono{X}\)}
+  \end{prooftree}
+  \ \\
+
+  \noindent
+  \(\Gamma_0 \entails \mono{let f} = \lambda \mono{z.z }
+    \hat{\mono{+}} \mono{ } \hat{\mono{1}} \mono{ in f } \hat{\mono{2}}
+    \inhabits \mono{int}\)
+  is valid in the simply-typed lambda calculus, as the following derivation does
+  not make use of (DM-Gen) or (DM-Inst).
+
+  Final derivation:
+  \begin{prooftree}
+    \AxiomC{\(\Gamma_0 \entails \lambda \mono{z.z } \hat{\mono{+}} \mono{ }
+      \hat{\mono{1}} \inhabits \mathbb{Z} \to \mathbb{Z}\)}
+    \AxiomC{\(\Gamma_0; \mono{f} \inhabits \mathbb{Z} \to \mathbb{Z} \entails
+      \mono{f } \hat{\mono{2}} \inhabits \mathbb{Z}\)}
+    \RightLabel{\small (DM-Let)}
+    \BinaryInfC{\(\Gamma_0 \entails \mono{let f} = \lambda \mono{z.z }
+      \hat{\mono{+}} \mono{ } \hat{\mono{1}} \mono{ in f } \hat{\mono{2}}
+      \inhabits \mathbb{Z}\)}
+  \end{prooftree}
+
+  Derivation of first hypothesis:
+  \begin{prooftree}
+    \AxiomC{\(\{\Gamma_0; \mono{z} \inhabits \mathbb{Z}\}(\hat{\mono{+}}) =
+      \mathbb{Z} \to \mathbb{Z} \to \mathbb{Z}\)}
+    \RightLabel{\small (DM-Var)}
+    \UnaryInfC{\(\Gamma_0; \mono{z} \inhabits \mathbb{Z} \entails \hat{\mono{+}}
+      \inhabits \mathbb{Z} \to \mathbb{Z} \to \mathbb{Z}\)}
+    \AxiomC{\(\{\Gamma_0; \mono{z} \inhabits \mathbb{Z}\}(\mono{z}) =
+      \mathbb{Z}\)}
+    \RightLabel{\small (DM-Var)}
+    \UnaryInfC{\(\Gamma_0; \mono{z} \inhabits \mathbb{Z} \entails \mono{z}
+      \inhabits \mathbb{Z}\)}
+    \RightLabel{\small (DM-App)}
+    \BinaryInfC{\(\Gamma_0; \mono{z} \inhabits \mathbb{Z} \entails
+      \hat{\mono{+}} \mono{ z} \inhabits \mathbb{Z} \to \mathbb{Z}\)}
+    \AxiomC{\(\{\Gamma_0; \hat{\mono{z}} \inhabits \mathbb{Z}\}(\mono{1}) =
+      \mathbb{Z}\)}
+    \RightLabel{\small (DM-Var)}
+    \UnaryInfC{\(\Gamma_0; \hat{\mono{z}} \inhabits \mathbb{Z} \entails
+      \hat{\mono{1}} \inhabits \mathbb{Z}\)}
+    \RightLabel{\small (DM-App)}
+    \BinaryInfC{\(\Gamma_0; \mono{z} \inhabits \mathbb{Z} \entails \mono{z }
+      \hat{\mono{+}} \mono{ } \hat{\mono{1}} \inhabits \mathbb{Z}\)}
+    \RightLabel{\small (DM-Abs)}
+    \UnaryInfC{\(\Gamma_0 \entails \lambda \mono{z.z } \hat{\mono{+}} \mono{ }
+      \hat{\mono{1}} \inhabits \mathbb{Z} \to \mathbb{Z}\)}
+  \end{prooftree}
+
+  Derivation of second hypothesis:
+  \begin{prooftree}
+    \AxiomC{\(\{\Gamma_0; \mono{f} \inhabits \mathbb{Z} \to \mathbb{Z}\}(
+      \mono{f}) = \mathbb{Z} \to \mathbb{Z}\)}
+    \RightLabel{\small (DM-Var)}
+    \UnaryInfC{\(\Gamma_0; \mono{f} \inhabits \mathbb{Z} \to \mathbb{Z} \entails
+      \mono{f} \inhabits \mathbb{Z} \to \mathbb{Z}\)}
+    \AxiomC{\(\{\Gamma_0; \mono{f} \inhabits \mathbb{Z} \to \mathbb{Z}\}(
+      \hat{\mono{2}}) = \mathbb{Z}\)}
+    \RightLabel{\small (DM-Var)}
+    \UnaryInfC{\(\Gamma_0; \mono{f} \inhabits \mathbb{Z} \to \mathbb{Z} \entails
+      \hat{\mono{2}} \inhabits \mathbb{Z}\)}
+    \RightLabel{\small (DM-App)}
+    \BinaryInfC{\(\Gamma_0; \mono{f} \inhabits \mathbb{Z} \to \mathbb{Z}
+      \entails \mono{f } \hat{\mono{2}} \inhabits \mathbb{Z}\)}
+  \end{prooftree}
+  \ \\
+
+  \noindent
+  Derivation of \(\Gamma_0 \entails \mono{let f} = \lambda \mono{z.z}
+    \mono{ in f f } \hat{\mono{2}} \inhabits \mathbb{Z}\)
+  is not valid in the simply-typed lambda calculus because mapping
+  \(\mono{let}\) to \(\lambda\) would force the two occurrences of \(\mono{f}\)
+  to have the same first-order type.
+
+  Final derivation:
+  \begin{prooftree}
+    \AxiomC{\(\Gamma_0 \entails \lambda \mono{z.z} \inhabits \forall \mono{X.X}
+      \to \mono{X}\)}
+    \AxiomC{\(\Gamma_0; \mono{f} \inhabits \forall \mono{X.X} \to \mono{X}
+      \entails \mono{f f} \inhabits \mathbb{Z} \to \mathbb{Z}\)}
+    \AxiomC{\(\{\Gamma_0; \mono{f} \inhabits \forall \mono{X.X} \to \mono{X}\}(
+      \hat{\mono{2}}) = \mathbb{Z}\)}
+    \RightLabel{\small (DM-Var)}
+    \UnaryInfC{\(\Gamma_0; \mono{f} \inhabits \forall \mono{X.X} \to \mono{X}
+      \entails \hat{\mono{2}} \inhabits \mathbb{Z}\)}
+    \RightLabel{\small (DM-App)}
+    \BinaryInfC{\(\Gamma_0; \mono{f} \inhabits \forall \mono{X.X} \to \mono{X}
+      \entails \mono{f f } \hat{\mono{2}} \inhabits \mathbb{Z}\)}
+    \RightLabel{\small (DM-Let)}
+    \BinaryInfC{\(\Gamma_0 \entails \mono{let f} = \lambda \mono{z.z in f f }
+      \hat{\mono{2}} \inhabits \mathbb{Z}\)}
+  \end{prooftree}
+
+  Derivation of first hypothesis:
+  \begin{prooftree}
+    \AxiomC{\(\{\Gamma_0; \mono{z} \inhabits \mono{X}\}(\mono{z}) = \mono{X}\)}
+    \RightLabel{\small (DM-Var)}
+    \UnaryInfC{\(\Gamma_0; \mono{z} \inhabits \mono{X} \entails \mono{z} \inhabits
+      \mono{X}\)}
+    \RightLabel{\small (DM-Abs)}
+    \UnaryInfC{\(\Gamma_0 \entails \lambda \mono{z.z} \inhabits \mono{X} \to
+      \mono{X}\)}
+    \AxiomC{\(\{\mono{X}\} \disjoint ftv(\Gamma_0)\)}
+    \RightLabel{\small (DM-Gen)}
+    \BinaryInfC{\(\Gamma_0 \entails \lambda \mono{z.z} \inhabits \forall
+      \mono{X.X} \to \mono{X}\)}
+  \end{prooftree}
+
+  Derivation of second hypothesis:
+  \begin{prooftree}
+    \AxiomC{\(\{\Gamma_0; \mono{f} \inhabits \forall \mono{X.X} \to
+      \mono{X}\}(\mono{f}) = \forall \mono{X.X} \to \mono{X}\)}
+    \RightLabel{\small (DM-Var)}
+    \UnaryInfC{\(\Gamma_0; \mono{f} \inhabits \forall \mono{X.X} \to \mono{X}
+      \entails \mono{f} \inhabits \forall \mono{X.X} \to \mono{X}\)}
+    \RightLabel{\small (DM-Inst)}
+    \UnaryInfC{\(\Gamma_0; \mono{f} \inhabits \forall \mono{X.X} \to \mono{X}
+      \entails \mono{f} \inhabits (\mathbb{Z} \to \mathbb{Z}) \to (\mathbb{Z}
+      \to \mathbb{Z})\)}
+    \AxiomC{\(\{\Gamma_0; \mono{f} \inhabits \forall \mono{X.X} \to
+      \mono{X}\}(\mono{f}) = \forall \mono{X.X} \to \mono{X}\)}
+    \RightLabel{\small (DM-Var)}
+    \UnaryInfC{\(\Gamma_0; \mono{f} \inhabits \forall \mono{X.X} \to \mono{X}
+      \entails \mono{f} \inhabits \forall \mono{X.X} \to \mono{X}\)}
+    \RightLabel{\small (DM-Inst)}
+    \UnaryInfC{\(\Gamma_0; \mono{f} \inhabits \forall \mono{X.X} \to \mono{X}
+      \entails \mono{f} \inhabits \mathbb{Z} \to \mathbb{Z}\)}
+    \RightLabel{\small (DM-App)}
+    \BinaryInfC{\(\Gamma_0; \mono{f} \inhabits \forall \mono{X.X} \to \mono{X}
+      \entails \mono{f f} \inhabits \mathbb{Z} \to \mathbb{Z}\)}
+  \end{prooftree}
+  \ \\
+
+  \noindent
+  Finally, the ill-typed terms. \(\hat{\mono{1}} \mono{ } \hat{\mono{2}}\) is
+  ill-typed because \(\Gamma_0(\hat{\mono{1}}) = \mathbb{Z}\), but its use as
+  \(\mono{t}_1\) in (DM-App) would imply that it must be a function type.
+  Similarly, the application of \(\mono{f}\) to itself would imply that both
+  \(\mono{f} \inhabits \mono{T}\) and that \(\mono{f} \inhabits \mono{T} \to
+  \mono{T}^\prime\), but these types are not equal as first order terms.
+\end{solution}
+
+\end{document}

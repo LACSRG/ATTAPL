@@ -1,0 +1,115 @@
+\ProvidesPackage{MathematicsWorkbook}
+\author{Eric Paniagua}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{fullpage}
+\usepackage{bussproofs}
+
+\theoremstyle{plain}
+\newtheorem{theorem}{Theorem}
+\newtheorem*{theorem*}{Theorem}
+\newtheorem{lemma}[theorem]{Lemma}
+\newtheorem*{lemma*}{Lemma}
+\newtheorem{corollary}[theorem]{Corollary}
+\newtheorem*{corollary*}{Corollary}
+\newtheorem{proposition}[theorem]{Proposition}
+\newtheorem*{proposition*}{Proposition}
+
+\theoremstyle{definition}
+\newtheorem{definition}[theorem]{Definition}
+\newtheorem*{definition*}{Definition}
+
+\theoremstyle{remark}
+\newtheorem{note}[theorem]{Note}
+\newtheorem*{note*}{Note}
+\newtheorem{remark}[theorem]{Remark}
+\newtheorem*{remark*}{Remark}
+\newtheorem{example}[theorem]{Example}
+\newtheorem*{example*}{Example}
+\newtheorem{problem}{\textbf{Problem}}
+
+
+\newenvironment{solution}[1][\textbf{Solution}]{\par
+  \normalfont \topsep6\p@\@plus6\p@\relax
+  \trivlist
+  \item[\hskip\labelsep
+    #1\@addpunct{.}]\ignorespaces
+}{%
+\bigskip%
+\endtrivlist\@endpefalse
+}
+
+
+\renewcommand{\labelenumi}{(\alph{enumi})}
+\renewcommand{\labelenumii}{\arabic{enumii}.}
+
+%Calligraphic alphabet:
+\newcommand{\calA}{\mathcal{A}} \newcommand{\calB}{\mathcal{B}}
+\newcommand{\calC}{\mathcal{C}} \newcommand{\calD}{\mathcal{D}}
+\newcommand{\calE}{\mathcal{E}} \newcommand{\calF}{\mathcal{F}}
+\newcommand{\calG}{\mathcal{G}} \newcommand{\calH}{\mathcal{H}}
+\newcommand{\calI}{\mathcal{I}} \newcommand{\calJ}{\mathcal{J}}
+\newcommand{\calK}{\mathcal{K}} \newcommand{\calL}{\mathcal{L}}
+\newcommand{\calM}{\mathcal{M}} \newcommand{\calN}{\mathcal{N}}
+\newcommand{\calO}{\mathcal{O}} \newcommand{\calP}{\mathcal{P}}
+\newcommand{\calQ}{\mathcal{Q}} \newcommand{\calR}{\mathcal{R}}
+\newcommand{\calS}{\mathcal{S}} \newcommand{\calT}{\mathcal{T}}
+\newcommand{\calU}{\mathcal{U}} \newcommand{\calV}{\mathcal{V}}
+\newcommand{\calW}{\mathcal{W}} \newcommand{\calX}{\mathcal{X}}
+\newcommand{\calY}{\mathcal{Y}} \newcommand{\calZ}{\mathcal{Z}}
+
+%Blackboard bold alphabet:
+\newcommand{\bbA}{\mathbb{A}} \newcommand{\bbB}{\mathbb{B}}
+\newcommand{\bbC}{\mathbb{C}} \newcommand{\bbD}{\mathbb{D}}
+\newcommand{\bbE}{\mathbb{E}} \newcommand{\bbF}{\mathbb{F}}
+\newcommand{\bbG}{\mathbb{G}} \newcommand{\bbH}{\mathbb{H}}
+\newcommand{\bbI}{\mathbb{I}} \newcommand{\bbJ}{\mathbb{J}}
+\newcommand{\bbK}{\mathbb{K}} \newcommand{\bbL}{\mathbb{L}}
+\newcommand{\bbM}{\mathbb{M}} \newcommand{\bbN}{\mathbb{N}}
+\newcommand{\bbO}{\mathbb{O}} \newcommand{\bbP}{\mathbb{P}}
+\newcommand{\bbQ}{\mathbb{Q}} \newcommand{\bbR}{\mathbb{R}}
+\newcommand{\bbS}{\mathbb{S}} \newcommand{\bbT}{\mathbb{T}}
+\newcommand{\bbU}{\mathbb{U}} \newcommand{\bbV}{\mathbb{V}}
+\newcommand{\bbW}{\mathbb{W}} \newcommand{\bbX}{\mathbb{X}}
+\newcommand{\bbY}{\mathbb{Y}} \newcommand{\bbZ}{\mathbb{Z}}
+
+\newcommand{\setN}{\mathbb{N}}
+\newcommand{\setZ}{\mathbb{Z}}
+\newcommand{\setQ}{\mathbb{Q}}
+\newcommand{\setR}{\mathbb{R}}
+\newcommand{\setC}{\mathbb{C}}
+\newcommand{\setA}{\mathbb{A}}
+\newcommand{\setF}{\mathbb{F}}
+
+\DeclareMathOperator{\sgn}{sgn}
+\DeclareMathOperator{\cis}{cis}
+\DeclareMathOperator{\aut}{Aut}
+\DeclareMathOperator{\Aut}{Aut}
+\DeclareMathOperator{\End}{End}
+\DeclareMathOperator{\Hom}{Hom}
+\DeclareMathOperator{\Dom}{Dom}
+\DeclareMathOperator{\Img}{Im}
+\DeclareMathOperator{\Tr}{Tr}
+\DeclareMathOperator{\Char}{char}
+\DeclareMathOperator{\Int}{Int}
+\DeclareMathOperator{\Span}{span}
+\DeclareMathOperator{\coker}{coker}
+\DeclareMathOperator{\Coker}{coker}
+\DeclareMathOperator{\supp}{supp}
+\DeclareMathOperator{\codim}{codim}
+\DeclareMathOperator{\Ext}{Ext}
+\DeclareMathOperator{\Tor}{Tor}
+\DeclareMathOperator{\oftype}{:}
+\DeclareMathOperator{\inhabits}{:}
+\DeclareMathOperator{\entails}{\vdash}
+\newcommand{\id}{\textrm{id}}
+\newcommand{\Ell}{\mathcal{L}}
+\newcommand{\Cech}{\v{C}ech}
+\newcommand{\Poincare}{Poincar\'e}
+\newcommand{\etale}{\'etal\'e}
+\newcommand{\Etale}{\'Etal\'e}
+
+\renewcommand{\implies}{\Rightarrow}
+\newcommand{\Implies}{\Longrightarrow}
+\renewcommand{\iff}{\Leftrightarrow}
+\newcommand{\Iff}{\Longleftrightarrow} 
